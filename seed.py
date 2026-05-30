@@ -9,6 +9,12 @@ from models import (
     HistorialViajesDB,
     TelemetriaBusDB
 )
+from utils import (
+    calcular_distancia_ruta,
+    calcular_tiempo_estimado,
+    calcular_demanda_promedio,
+    path_json_a_lista
+)
 
 import random
 import json
@@ -52,6 +58,7 @@ PARADAS = [
 ]
 
 paradas_db = []
+parada_map = {}  # ID -> Parada para buscar rápido
 
 for nombre, lat, lon in PARADAS:
 
@@ -66,6 +73,10 @@ for nombre, lat, lon in PARADAS:
     paradas_db.append(parada)
 
 db.commit()
+
+# Mapear IDs
+for parada in paradas_db:
+    parada_map[parada.nombre] = parada.id
 
 print("✅ 20 paradas creadas")
 
@@ -83,7 +94,8 @@ RUTAS_REALES = [
             [-75.7200,4.8000],
             [-75.7050,4.8070],
             [-75.6942,4.8135]   # Centro
-        ]
+        ],
+        "paradas": ["Cuba", "Centro"]
     },
 
     {
@@ -93,7 +105,8 @@ RUTAS_REALES = [
             [-75.6942,4.8135],
             [-75.6910,4.8140],
             [-75.6898,4.8174]
-        ]
+        ],
+        "paradas": ["Centro", "Dosquebradas"]
     },
 
     {
@@ -103,7 +116,8 @@ RUTAS_REALES = [
             [-75.6942,4.8135],
             [-75.6920,4.8070],
             [-75.6885,4.7945]
-        ]
+        ],
+        "paradas": ["Centro", "UTP"]
     },
 
     {
@@ -114,7 +128,8 @@ RUTAS_REALES = [
             [-75.6700,4.8300],
             [-75.6500,4.8500],
             [-75.6231,4.8707]
-        ]
+        ],
+        "paradas": ["Centro", "Villa Santana", "Santa Rosa"]
     },
 
     {
@@ -124,7 +139,8 @@ RUTAS_REALES = [
             [-75.6898,4.8174],
             [-75.6800,4.8260],
             [-75.6700,4.8400]
-        ]
+        ],
+        "paradas": ["Dosquebradas", "Samaria", "Frailes"]
     },
 
     {
@@ -134,7 +150,8 @@ RUTAS_REALES = [
             [-75.6942,4.8135],
             [-75.6840,4.8120],
             [-75.6710,4.8070]
-        ]
+        ],
+        "paradas": ["Centro", "Villa Santana"]
     },
 
     {
@@ -145,7 +162,8 @@ RUTAS_REALES = [
             [-75.7600,4.8400],
             [-75.8200,4.8700],
             [-75.8830,4.8990]
-        ]
+        ],
+        "paradas": ["Centro", "La Virginia"]
     },
 
     {
@@ -156,7 +174,8 @@ RUTAS_REALES = [
             [-75.7100,4.8600],
             [-75.7250,4.9000],
             [-75.7370,4.9370]
-        ]
+        ],
+        "paradas": ["Centro", "Marsella"]
     },
 
     {
@@ -167,7 +186,8 @@ RUTAS_REALES = [
             [-75.7600,4.9500],
             [-75.8500,5.0200],
             [-75.9430,5.1060]
-        ]
+        ],
+        "paradas": ["Santa Rosa", "Apía"]
     },
 
     {
@@ -177,7 +197,8 @@ RUTAS_REALES = [
             [-75.9430,5.1060],
             [-75.9550,5.0950],
             [-75.9650,5.0800]
-        ]
+        ],
+        "paradas": ["Apía", "Santuario"]
     },
 
     {
@@ -187,7 +208,8 @@ RUTAS_REALES = [
             [-75.9650,5.0800],
             [-75.9200,5.1300],
             [-75.8670,5.2000]
-        ]
+        ],
+        "paradas": ["Santuario", "Belén"]
     },
 
     {
@@ -197,7 +219,8 @@ RUTAS_REALES = [
             [-75.8670,5.2000],
             [-75.8750,5.2500],
             [-75.8830,5.2960]
-        ]
+        ],
+        "paradas": ["Belén", "Mistrató"]
     },
 
     {
@@ -207,7 +230,8 @@ RUTAS_REALES = [
             [-75.8830,5.2960],
             [-75.9500,5.2700],
             [-76.0360,5.2240]
-        ]
+        ],
+        "paradas": ["Mistrató", "Pueblo Rico"]
     },
 
     {
@@ -219,24 +243,69 @@ RUTAS_REALES = [
             [-75.6898,4.8174],
             [-75.6231,4.8707],
             [-75.6942,4.8135]
-        ]
+        ],
+        "paradas": ["Cuba", "Centro", "Dosquebradas", "Santa Rosa"]
     }
 ]
 
+rutas_creadas = []
+
 for ruta_data in RUTAS_REALES:
+
+    # FASE 1: Calcular distancia
+    path = ruta_data["path"]
+    distancia_km = calcular_distancia_ruta(path)
+    
+    # FASE 1: Calcular tiempo estimado
+    tiempo_estimado_min = calcular_tiempo_estimado(distancia_km)
+    
+    # FASE 1: Calcular demanda promedio
+    paradas_nombres = ruta_data["paradas"]
+    personas_en_paradas = []
+    for nombre_parada in paradas_nombres:
+        parada_obj = db.query(ParadaDB).filter_by(nombre=nombre_parada).first()
+        if parada_obj:
+            personas_en_paradas.append(parada_obj.personas_esperando)
+    
+    demanda_promedio = calcular_demanda_promedio(personas_en_paradas)
 
     ruta = RutaDB(
         nombre=ruta_data["nombre"],
         codigo_ruta=ruta_data["codigo"],
         tarifa_base=random.randint(3000,7000),
-        geometria_ruta=json.dumps(ruta_data["path"])
+        geometria_ruta=json.dumps(ruta_data["path"]),
+        distancia_km=distancia_km,
+        tiempo_estimado_min=tiempo_estimado_min,
+        demanda_promedio=demanda_promedio
     )
 
     db.add(ruta)
+    db.flush()  # Para obtener el ID antes de hacer commit
+    rutas_creadas.append((ruta, ruta_data["paradas"]))
 
 db.commit()
 
 print("✅ 14 rutas metropolitanas creadas")
+print("   📍 Distancia, tiempo estimado y demanda calculados automáticamente")
+
+# =========================
+# FASE 1: POBLAR RUTA_PARADAS
+# =========================
+
+for ruta, paradas_nombres in rutas_creadas:
+    for orden, nombre_parada in enumerate(paradas_nombres):
+        parada_obj = db.query(ParadaDB).filter_by(nombre=nombre_parada).first()
+        if parada_obj:
+            ruta_parada = RutaParadaDB(
+                ruta_id=ruta.id,
+                parada_id=parada_obj.id,
+                orden_secuencia=orden
+            )
+            db.add(ruta_parada)
+
+db.commit()
+
+print("✅ RutaParadaDB poblada - Secuencias de paradas creadas")
 
 # =========================
 # VEHÍCULOS
@@ -364,4 +433,10 @@ print("✅ 10.000 viajes históricos creados")
 
 db.close()
 
-print("🚀 Sistema Metropolitano RISARALDA listo")
+print("\n" + "="*60)
+print("🚀 FASE 1 COMPLETADA - Sistema Metropolitano RISARALDA listo")
+print("="*60)
+print("✅ distancia_km calculada automáticamente")
+print("✅ tiempo_estimado_min calculada automáticamente") 
+print("✅ demanda_promedio calculada automáticamente")
+print("✅ RutaParadaDB poblada con secuencias de paradas")
