@@ -9,3 +9,4 @@ scikit-learn
 websockets
 pydeck
 shapely
+plotly
