@@ -7,22 +7,57 @@ class VehiculoDB(Base):
     __tablename__ = 'vehiculos'
 
     id = Column(Integer, primary_key=True, index=True)
-    placa = Column(String(10), unique=True, nullable=False)
-    capacidad = Column(Integer, default=40)
-    tipo_motor = Column(String(20), nullable=False)
-    estado_mecanico = Column(String(20), default="Optimo")
+
+    placa = Column(
+        String(10),
+        unique=True,
+        nullable=False
+    )
+
+    capacidad = Column(
+        Integer,
+        default=40
+    )
+
+    tipo_motor = Column(
+        String(20),
+        nullable=False
+    )
+
+    estado_mecanico = Column(
+        String(20),
+        default="Optimo"
+    )
+
+    # =========================
+    # NUEVO
+    # =========================
+
+    ruta_asignada_id = Column(
+        Integer,
+        ForeignKey("rutas.id"),
+        nullable=True
+    )
 
 
 class HistoricoRutaDB(Base):
     __tablename__ = 'historico_rutas'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    vehiculo_id = Column(Integer, ForeignKey('vehiculos.id'))
+
+    vehiculo_id = Column(
+        Integer,
+        ForeignKey('vehiculos.id')
+    )
 
     latitud = Column(Float)
+
     longitud = Column(Float)
 
-    velocidad_kmh = Column(Float, default=0)
+    velocidad_kmh = Column(
+        Float,
+        default=0
+    )
 
     timestamp = Column(
         DateTime,
@@ -33,8 +68,16 @@ class HistoricoRutaDB(Base):
 class ConductorDB(Base):
     __tablename__ = 'conductores'
 
-    id = Column(String(20), primary_key=True, index=True)
-    nombre = Column(String(100), nullable=False)
+    id = Column(
+        String(20),
+        primary_key=True,
+        index=True
+    )
+
+    nombre = Column(
+        String(100),
+        nullable=False
+    )
 
     licencia = Column(
         String(20),
@@ -42,7 +85,10 @@ class ConductorDB(Base):
         nullable=False
     )
 
-    experiencia_anos = Column(Integer, default=0)
+    experiencia_anos = Column(
+        Integer,
+        default=0
+    )
 
     vehiculo_actual_id = Column(
         Integer,
@@ -54,7 +100,11 @@ class ConductorDB(Base):
 class RutaDB(Base):
     __tablename__ = 'rutas'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
     nombre = Column(
         String(100),
@@ -68,33 +118,69 @@ class RutaDB(Base):
         nullable=False
     )
 
-    tarifa_base = Column(Float, default=2900.0)
+    tarifa_base = Column(
+        Float,
+        default=2900.0
+    )
 
+    geometria_ruta = Column(
+        Text,
+        nullable=True
+    )
+
+    # =========================
     # NUEVO
-    # Geometría simplificada de la ruta
-    # Se guarda como JSON:
-    # [[lon,lat],[lon,lat],...]
-    geometria_ruta = Column(Text, nullable=True)
+    # =========================
+
+    color_hex = Column(
+        String(10),
+        default="#00FFFF"
+    )
+
+    frecuencia_minutos = Column(
+        Integer,
+        default=15
+    )
 
 
 class ParadaDB(Base):
     __tablename__ = 'paradas'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
-    nombre = Column(String(100), nullable=False)
+    nombre = Column(
+        String(100),
+        nullable=False
+    )
 
-    latitud = Column(Float, nullable=False)
-    longitud = Column(Float, nullable=False)
+    latitud = Column(
+        Float,
+        nullable=False
+    )
 
-    # NUEVO
-    personas_esperando = Column(Integer, default=0)
+    longitud = Column(
+        Float,
+        nullable=False
+    )
+
+    personas_esperando = Column(
+        Integer,
+        default=0
+    )
 
 
 class RutaParadaDB(Base):
     __tablename__ = 'ruta_paradas'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
     ruta_id = Column(
         Integer,
@@ -117,13 +203,26 @@ class RutaParadaDB(Base):
 class UsuarioDB(Base):
     __tablename__ = 'usuarios'
 
-    id = Column(String(20), primary_key=True, index=True)
+    id = Column(
+        String(20),
+        primary_key=True,
+        index=True
+    )
 
-    nombre = Column(String(100), nullable=False)
+    nombre = Column(
+        String(100),
+        nullable=False
+    )
 
-    saldo_billetera = Column(Float, default=0.0)
+    saldo_billetera = Column(
+        Float,
+        default=0.0
+    )
 
-    deuda = Column(Float, default=0.0)
+    deuda = Column(
+        Float,
+        default=0.0
+    )
 
     tipo_usuario = Column(
         String(20),
@@ -134,7 +233,11 @@ class UsuarioDB(Base):
 class HistorialViajesDB(Base):
     __tablename__ = 'historial_viajes'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
     usuario_id = Column(
         String(20),
@@ -159,7 +262,10 @@ class HistorialViajesDB(Base):
         default=datetime.datetime.utcnow
     )
 
-    costo_aplicado = Column(Float, nullable=False)
+    costo_aplicado = Column(
+        Float,
+        nullable=False
+    )
 
     metodo_pago = Column(
         String(20),
@@ -176,16 +282,31 @@ class TelemetriaBusDB(Base):
         primary_key=True
     )
 
-    latitud = Column(Float, nullable=False)
-    longitud = Column(Float, nullable=False)
+    latitud = Column(
+        Float,
+        nullable=False
+    )
 
-    velocidad_kmh = Column(Float, default=0.0)
+    longitud = Column(
+        Float,
+        nullable=False
+    )
 
-    nivel_energia = Column(Float, default=100.0)
+    velocidad_kmh = Column(
+        Float,
+        default=0.0
+    )
 
-    pasajeros_a_bordo = Column(Integer, default=0)
+    nivel_energia = Column(
+        Float,
+        default=100.0
+    )
 
-    # NUEVO
+    pasajeros_a_bordo = Column(
+        Integer,
+        default=0
+    )
+
     estado_salud = Column(
         String(20),
         default="VERDE"
@@ -201,7 +322,11 @@ class TelemetriaBusDB(Base):
 class AlertaDB(Base):
     __tablename__ = 'alertas_flota'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
     vehiculo_id = Column(
         Integer,
