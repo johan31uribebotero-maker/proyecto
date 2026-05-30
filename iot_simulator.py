@@ -1,78 +1,200 @@
-import time
-import requests
-import random
 import asyncio
-import websockets
 import json
+import random
 
-# Coordenadas de los paraderos clave en Risaralda
-PARADEROS = [
-    (4.7915, -75.7310), # Cuba
-    (4.8135, -75.6942), # Centro
-    (4.7945, -75.6885), # UTP
-    (4.8174, -75.6898), # Dosquebradas
-    (4.8707, -75.6231)  # Santa Rosa
-]
+import websockets
+from sqlalchemy.orm import Session
+
+from database import SessionLocal
+from models import RutaDB
+
+# ==========================================
+# CONFIG
+# ==========================================
+
+TOTAL_BUSES = 200
+WS_URL = "ws://127.0.0.1:8000/ws/telemetria_ingesta"
+
+# ==========================================
+# CARGAR RUTAS
+# ==========================================
+
+db: Session = SessionLocal()
+
+rutas = db.query(RutaDB).all()
+
+if not rutas:
+    raise Exception(
+        "No existen rutas. Ejecuta seed.py primero."
+    )
+
+# ==========================================
+# ESTADO FLOTA
+# ==========================================
 
 estado_flota = {}
-for i in range(1, 151):
-    estado_flota[i] = {
-        "bateria_gasolina": random.uniform(20.0, 100.0), 
-        "lat": random.uniform(4.75, 4.90), 
-        "lon": random.uniform(-75.80, -75.60),
-        "target": random.choice(PARADEROS) # NUEVO: Objetivo asignado en lugar de azar
+
+for bus_id in range(1, TOTAL_BUSES + 1):
+
+    ruta = rutas[(bus_id - 1) % len(rutas)]
+
+    geometria = json.loads(
+        ruta.geometria_ruta
+    )
+
+    estado_flota[bus_id] = {
+        "ruta_id": ruta.id,
+        "path": geometria,
+        "segmento": 0,
+        "progreso": random.random(),
+        "energia": random.uniform(50, 100),
+        "salud": "VERDE"
     }
 
-print("📡 Satélite de Telemetría Direccional (150 Buses) Activado...")
+print(
+    f"🚌 Simulador iniciado con {TOTAL_BUSES} buses"
+)
 
-async def enviar_telemetria_ws():
-    uri = "ws://127.0.0.1:8000/ws/telemetria_ingesta"
-    
+# ==========================================
+# FUNCIONES
+# ==========================================
+
+def interpolar(p1, p2, t):
+
+    lon = p1[0] + (p2[0] - p1[0]) * t
+    lat = p1[1] + (p2[1] - p1[1]) * t
+
+    return lat, lon
+
+
+def avanzar_bus(bus):
+
+    path = bus["path"]
+
+    seg = bus["segmento"]
+    prog = bus["progreso"]
+
+    prog += 0.03
+
+    if prog >= 1.0:
+
+        prog = 0.0
+        seg += 1
+
+        if seg >= len(path) - 1:
+            seg = 0
+
+    bus["segmento"] = seg
+    bus["progreso"] = prog
+
+    p1 = path[seg]
+    p2 = path[seg + 1]
+
+    lat, lon = interpolar(
+        p1,
+        p2,
+        prog
+    )
+
+    return lat, lon
+
+
+def calcular_estado_salud(velocidad):
+
+    if velocidad < 5:
+        return "ROJO"
+
+    if velocidad < 20:
+        return "AMARILLO"
+
+    return "VERDE"
+
+
+# ==========================================
+# LOOP PRINCIPAL
+# ==========================================
+
+async def ejecutar():
+
     while True:
+
         try:
-            async with websockets.connect(uri) as websocket:
-                print("✅ Conectado al Gestor WebSocket del Servidor Central")
+
+            async with websockets.connect(
+                WS_URL
+            ) as websocket:
+
+                print(
+                    "✅ Conectado a FastAPI"
+                )
+
                 while True:
-                    for v in range(1, 151):
-                        # NUEVO: Lógica matemática para rastreo fluido hacia el objetivo
-                        t_lat, t_lon = estado_flota[v]["target"]
-                        c_lat = estado_flota[v]["lat"]
-                        c_lon = estado_flota[v]["lon"]
-                        
-                        step = 0.0003 # Velocidad de avance vectorial
-                        dir_lat = t_lat - c_lat
-                        dir_lon = t_lon - c_lon
-                        dist = (dir_lat**2 + dir_lon**2)**0.5
-                        
-                        if dist < step:
-                            # Al llegar a la parada, buscar un nuevo destino
-                            estado_flota[v]["target"] = random.choice(PARADEROS)
-                        else:
-                            # Moverse directamente hacia la parada
-                            estado_flota[v]["lat"] += (dir_lat / dist) * step
-                            estado_flota[v]["lon"] += (dir_lon / dist) * step
-                        
-                        estado_flota[v]["bateria_gasolina"] -= random.uniform(0.1, 0.5)
-                        if estado_flota[v]["bateria_gasolina"] < 5.0: 
-                            estado_flota[v]["bateria_gasolina"] = 100.0 
-                            
-                        datos = {
-                            "vehiculo_id": v,
-                            "latitud": estado_flota[v]["lat"], 
-                            "longitud": estado_flota[v]["lon"],
-                            "velocidad_kmh": random.uniform(30, 60),
-                            "nivel_energia": estado_flota[v]["bateria_gasolina"],
-                            "pasajeros_a_bordo": random.randint(10, 80)
+
+                    for bus_id, bus in estado_flota.items():
+
+                        lat, lon = avanzar_bus(bus)
+
+                        velocidad = random.uniform(
+                            10,
+                            60
+                        )
+
+                        salud = calcular_estado_salud(
+                            velocidad
+                        )
+
+                        energia = bus["energia"]
+                        energia -= random.uniform(
+                            0.02,
+                            0.15
+                        )
+
+                        if energia < 10:
+                            energia = 100
+
+                        bus["energia"] = energia
+                        bus["salud"] = salud
+
+                        payload = {
+                            "vehiculo_id": bus_id,
+                            "latitud": lat,
+                            "longitud": lon,
+                            "velocidad_kmh": velocidad,
+                            "nivel_energia": energia,
+                            "pasajeros_a_bordo": random.randint(
+                                5,
+                                80
+                            )
                         }
-                        
-                        await websocket.send(json.dumps(datos))
-                        await asyncio.sleep(0.01) 
-                        
-                    print(f"🔄 Enjambre sincronizado direccionalmente via WS.")
-                    await asyncio.sleep(2)
+
+                        await websocket.send(
+                            json.dumps(payload)
+                        )
+
+                        await asyncio.sleep(
+                            0.005
+                        )
+
+                    print(
+                        "📡 Telemetría enviada"
+                    )
+
+                    await asyncio.sleep(1)
+
         except Exception as e:
-            print(f"⚠️ Conexión WebSocket perdida. Reintentando en 3s... Error: {e}")
+
+            print(
+                f"⚠️ Error WS: {e}"
+            )
+
             await asyncio.sleep(3)
 
+
+# ==========================================
+# START
+# ==========================================
+
 if __name__ == "__main__":
-    asyncio.run(enviar_telemetria_ws())
+    asyncio.run(
+        ejecutar()
+    )
