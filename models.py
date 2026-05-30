@@ -1,12 +1,29 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    DateTime,
+    Text
+)
+
 from database import Base
 import datetime
 
 
-class VehiculoDB(Base):
-    __tablename__ = 'vehiculos'
+# =====================================================
+# VEHICULOS
+# =====================================================
 
-    id = Column(Integer, primary_key=True, index=True)
+class VehiculoDB(Base):
+    __tablename__ = "vehiculos"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     placa = Column(
         String(10),
@@ -29,29 +46,42 @@ class VehiculoDB(Base):
         default="Optimo"
     )
 
-    # =========================
+    # ==========================
     # NUEVO
-    # =========================
+    # Ruta asignada permanentemente
+    # ==========================
 
-    ruta_asignada_id = Column(
+    ruta_id = Column(
         Integer,
         ForeignKey("rutas.id"),
         nullable=True
     )
 
+    estado_operacion = Column(
+        String(20),
+        default="ACTIVO"
+    )
+
+
+# =====================================================
+# HISTORICO GPS
+# =====================================================
 
 class HistoricoRutaDB(Base):
-    __tablename__ = 'historico_rutas'
+    __tablename__ = "historico_rutas"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
 
     vehiculo_id = Column(
         Integer,
-        ForeignKey('vehiculos.id')
+        ForeignKey("vehiculos.id")
     )
 
     latitud = Column(Float)
-
     longitud = Column(Float)
 
     velocidad_kmh = Column(
@@ -65,8 +95,12 @@ class HistoricoRutaDB(Base):
     )
 
 
+# =====================================================
+# CONDUCTORES
+# =====================================================
+
 class ConductorDB(Base):
-    __tablename__ = 'conductores'
+    __tablename__ = "conductores"
 
     id = Column(
         String(20),
@@ -92,13 +126,17 @@ class ConductorDB(Base):
 
     vehiculo_actual_id = Column(
         Integer,
-        ForeignKey('vehiculos.id'),
+        ForeignKey("vehiculos.id"),
         nullable=True
     )
 
 
+# =====================================================
+# RUTAS
+# =====================================================
+
 class RutaDB(Base):
-    __tablename__ = 'rutas'
+    __tablename__ = "rutas"
 
     id = Column(
         Integer,
@@ -123,28 +161,45 @@ class RutaDB(Base):
         default=2900.0
     )
 
+    # =================================================
+    # Geometría
+    # =================================================
+
     geometria_ruta = Column(
         Text,
         nullable=True
     )
 
-    # =========================
+    # =================================================
     # NUEVO
-    # =========================
+    # Longitud total calculada
+    # =================================================
 
-    color_hex = Column(
-        String(10),
-        default="#00FFFF"
+    distancia_km = Column(
+        Float,
+        default=0.0
     )
 
-    frecuencia_minutos = Column(
-        Integer,
-        default=15
+    # =================================================
+    # MATRIZ DE TRANSICION
+    # Algebra Lineal
+    #
+    # [[0.2,0.3],
+    #  [0.8,0.7]]
+    # =================================================
+
+    matriz_transicion = Column(
+        Text,
+        nullable=True
     )
 
+
+# =====================================================
+# PARADAS
+# =====================================================
 
 class ParadaDB(Base):
-    __tablename__ = 'paradas'
+    __tablename__ = "paradas"
 
     id = Column(
         Integer,
@@ -172,9 +227,23 @@ class ParadaDB(Base):
         default=0
     )
 
+    # =================================================
+    # NUEVO
+    # Peso estratégico
+    # =================================================
+
+    peso_demanda = Column(
+        Float,
+        default=1.0
+    )
+
+
+# =====================================================
+# RELACION RUTA-PARADA
+# =====================================================
 
 class RutaParadaDB(Base):
-    __tablename__ = 'ruta_paradas'
+    __tablename__ = "ruta_paradas"
 
     id = Column(
         Integer,
@@ -184,13 +253,13 @@ class RutaParadaDB(Base):
 
     ruta_id = Column(
         Integer,
-        ForeignKey('rutas.id'),
+        ForeignKey("rutas.id"),
         nullable=False
     )
 
     parada_id = Column(
         Integer,
-        ForeignKey('paradas.id'),
+        ForeignKey("paradas.id"),
         nullable=False
     )
 
@@ -200,8 +269,12 @@ class RutaParadaDB(Base):
     )
 
 
+# =====================================================
+# USUARIOS
+# =====================================================
+
 class UsuarioDB(Base):
-    __tablename__ = 'usuarios'
+    __tablename__ = "usuarios"
 
     id = Column(
         String(20),
@@ -230,8 +303,12 @@ class UsuarioDB(Base):
     )
 
 
+# =====================================================
+# HISTORIAL VIAJES
+# =====================================================
+
 class HistorialViajesDB(Base):
-    __tablename__ = 'historial_viajes'
+    __tablename__ = "historial_viajes"
 
     id = Column(
         Integer,
@@ -241,19 +318,19 @@ class HistorialViajesDB(Base):
 
     usuario_id = Column(
         String(20),
-        ForeignKey('usuarios.id'),
+        ForeignKey("usuarios.id"),
         nullable=False
     )
 
     ruta_id = Column(
         Integer,
-        ForeignKey('rutas.id'),
+        ForeignKey("rutas.id"),
         nullable=False
     )
 
     vehiculo_id = Column(
         Integer,
-        ForeignKey('vehiculos.id'),
+        ForeignKey("vehiculos.id"),
         nullable=False
     )
 
@@ -273,12 +350,16 @@ class HistorialViajesDB(Base):
     )
 
 
+# =====================================================
+# TELEMETRIA
+# =====================================================
+
 class TelemetriaBusDB(Base):
-    __tablename__ = 'telemetria_buses'
+    __tablename__ = "telemetria_buses"
 
     vehiculo_id = Column(
         Integer,
-        ForeignKey('vehiculos.id'),
+        ForeignKey("vehiculos.id"),
         primary_key=True
     )
 
@@ -312,6 +393,16 @@ class TelemetriaBusDB(Base):
         default="VERDE"
     )
 
+    # =================================================
+    # NUEVO
+    # Progreso sobre ruta (0-100%)
+    # =================================================
+
+    progreso_ruta = Column(
+        Float,
+        default=0.0
+    )
+
     ultima_actualizacion = Column(
         DateTime,
         default=datetime.datetime.utcnow,
@@ -319,8 +410,12 @@ class TelemetriaBusDB(Base):
     )
 
 
+# =====================================================
+# ALERTAS
+# =====================================================
+
 class AlertaDB(Base):
-    __tablename__ = 'alertas_flota'
+    __tablename__ = "alertas_flota"
 
     id = Column(
         Integer,
@@ -330,7 +425,7 @@ class AlertaDB(Base):
 
     vehiculo_id = Column(
         Integer,
-        ForeignKey('vehiculos.id'),
+        ForeignKey("vehiculos.id"),
         nullable=False
     )
 
